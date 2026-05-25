@@ -92,6 +92,8 @@
   .pedido-card.status-pronto { border-left-color: #10b981; }
   .pedido-card.status-enviado { border-left-color: var(--navy); }
   .pedido-card.status-entregue { border-left-color: var(--gray-3); }
+  .pedido-card.status-monica { border-left-color: #8b5cf6; }
+  .pedido-card.status-lucas { border-left-color: #0ea5e9; }
   .pedido-card.urgente { border-left-color: #dc2626 !important; }
 
   .pedido-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
@@ -105,6 +107,12 @@
   .badge-pronto { background: #d1fae5; color: #065f46; }
   .badge-enviado { background: #dbeafe; color: #1e40af; }
   .badge-entregue { background: var(--gray-1); color: var(--gray-4); }
+  .badge-monica { background: #ede9fe; color: #5b21b6; }
+  .badge-lucas { background: #e0f2fe; color: #0369a1; }
+  .btn-monica { background: #8b5cf6; border-color: #8b5cf6; color: white; }
+  .btn-monica:hover { background: #7c3aed !important; }
+  .btn-lucas { background: #0ea5e9; border-color: #0ea5e9; color: white; }
+  .btn-lucas:hover { background: #0284c7 !important; }
 
   .urgente-badge { display: inline-block; background: #dc2626; color: white; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 2px 8px; border-radius: 4px; margin-left: 8px; vertical-align: middle; animation: pulse 1.5s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
@@ -179,6 +187,8 @@
       <button class="filter-btn" onclick="setFilter('pronto', this)">Prontos</button>
       <button class="filter-btn" onclick="setFilter('enviado', this)">Enviados</button>
       <button class="filter-btn" onclick="setFilter('entregue', this)">Entregues</button>
+      <button class="filter-btn" onclick="setFilter('monica', this)">🧵 Mônica</button>
+      <button class="filter-btn" onclick="setFilter('lucas', this)">🧵 Lucas</button>
     </div>
     <div class="pedidos-list" id="pedidos-list">
       <div class="loading"><div class="loading-spinner"></div><br>Carregando pedidos...</div>
@@ -405,8 +415,10 @@ function editarPedido(id) {
 }
 
 // ── STATUS ──
-const statusLabel = { producao: 'Em Produção', pronto: 'Pronto', enviado: 'Enviado', entregue: 'Entregue' };
+const statusLabel = { producao: 'Em Produção', monica: '🧵 Mônica Fazendo', lucas: '🧵 Lucas Fazendo', pronto: 'Pronto', enviado: 'Enviado', entregue: 'Entregue' };
 const statusNext = {
+  monica: { key: 'pronto', label: '→ Marcar Pronto' },
+  lucas: { key: 'pronto', label: '→ Marcar Pronto' },
   producao: { key: 'pronto', label: '→ Marcar Pronto' },
   pronto: { key: 'enviado', label: '→ Marcar Enviado' },
   enviado: { key: 'entregue', label: '→ Marcar Entregue' },
@@ -426,6 +438,22 @@ async function avancarStatus(id, btn) {
     toast('✓ ' + statusLabel[novoStatus]);
   } catch(e) {
     toast('❌ Erro ao atualizar status', true);
+    btn.disabled = false;
+  }
+}
+
+async function setResponsavel(id, responsavel, btn) {
+  const p = pedidos.find(p => p.id === id);
+  if (!p) return;
+  btn.disabled = true;
+  try {
+    await apiUpdate(id, { status: responsavel });
+    p.status = responsavel;
+    renderList();
+    updateStats();
+    toast('✓ ' + statusLabel[responsavel]);
+  } catch(e) {
+    toast('❌ Erro ao atualizar', true);
     btn.disabled = false;
   }
 }
@@ -496,7 +524,7 @@ function renderList() {
       ${fotos ? `<div class="pedido-fotos">${fotos}</div>` : ''}
       ${p.obs ? `<div class="pedido-obs">📝 ${p.obs}</div>` : ''}
       <div class="pedido-actions">
-        ${next ? `<button class="btn-sm status-next" onclick="avancarStatus('${p.id}', this)">${next.label}</button>` : ''}
+        ${p.status === 'producao' ? `<button class="btn-sm btn-monica" onclick="setResponsavel('${p.id}', 'monica', this)">🧵 Mônica Fazendo</button><button class="btn-sm btn-lucas" onclick="setResponsavel('${p.id}', 'lucas', this)">🧵 Lucas Fazendo</button>` : (next ? `<button class="btn-sm status-next" onclick="avancarStatus('${p.id}', this)">${next.label}</button>` : '')}
         <button class="btn-sm" onclick="editarPedido('${p.id}')">✏ Editar</button>
         <button class="btn-sm danger" onclick="deletarPedido('${p.id}')">🗑 Remover</button>
       </div>
