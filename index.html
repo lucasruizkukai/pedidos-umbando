@@ -88,6 +88,7 @@
   .pedidos-list { display: flex; flex-direction: column; gap: 14px; }
   .pedido-card { background: var(--white); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border-left: 4px solid var(--gray-2); transition: all 0.2s; }
   .pedido-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+  .pedido-card.status-aguardando { border-left-color: #a855f7; }
   .pedido-card.status-producao { border-left-color: #f59e0b; }
   .pedido-card.status-pronto { border-left-color: #10b981; }
   .pedido-card.status-enviado { border-left-color: var(--navy); }
@@ -103,6 +104,7 @@
   .pedido-wpp a { color: #128C7E; text-decoration: none; font-weight: 500; }
 
   .badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; }
+  .badge-aguardando { background: #f3e8ff; color: #6b21a8; }
   .badge-producao { background: #fef3c7; color: #92400e; }
   .badge-pronto { background: #d1fae5; color: #065f46; }
   .badge-enviado { background: #dbeafe; color: #1e40af; }
@@ -151,6 +153,54 @@
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.error { border-left-color: #dc2626; }
 
+
+  /* ── COLLAPSED CARDS ── */
+  .pedido-card { cursor: pointer; }
+  .pedido-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .pedido-summary-nome {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--navy);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pedido-summary-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  .summary-date {
+    font-size: 11px;
+    color: var(--gray-3);
+    white-space: nowrap;
+  }
+  .pedido-detail {
+    display: none;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--gray-1);
+  }
+  .pedido-card.open .pedido-detail { display: block; }
+  .pedido-card.open { cursor: default; }
+  .chevron {
+    font-size: 12px;
+    color: var(--gray-3);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .pedido-card.open .chevron { transform: rotate(180deg); }
+
   @media (max-width: 600px) {
     .form-grid { grid-template-columns: 1fr; }
     .header-stats { gap: 12px; }
@@ -183,6 +233,7 @@
     <div class="filters">
       <input class="search-input" id="search" placeholder="Buscar por nome, produto, código..." oninput="renderList()">
       <button class="filter-btn active" onclick="setFilter('todos', this)">Todos</button>
+      <button class="filter-btn" onclick="setFilter('aguardando', this)">Aguardando</button>
       <button class="filter-btn" onclick="setFilter('producao', this)">Em Produção</button>
       <button class="filter-btn" onclick="setFilter('pronto', this)">Prontos</button>
       <button class="filter-btn" onclick="setFilter('enviado', this)">Enviados</button>
@@ -235,6 +286,27 @@
     </div>
   </div>
 </main>
+
+
+<!-- MODAL ENVIO -->
+<div class="modal-overlay" id="modal-envio" style="flex-direction:column;gap:0;">
+  <div style="background:white;border-radius:16px;padding:28px;max-width:440px;width:90%;position:relative;">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#002a66;margin-bottom:18px;">📦 Marcar como Enviado</div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#6e6a60;">Código de Rastreio</label>
+      <input type="text" id="envio-rastreio" placeholder="Ex: AA123456789BR" style="width:100%;margin-top:6px;padding:10px 14px;border:1.5px solid #e8e6df;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;">
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#6e6a60;">Mensagem pra copiar</label>
+      <textarea id="envio-msg" rows="4" readonly style="width:100%;margin-top:6px;padding:10px 14px;border:1.5px solid #e8e6df;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:#f4f3ef;resize:none;outline:none;cursor:pointer;" onclick="copiarMsg()" title="Clique para copiar"></textarea>
+      <div style="font-size:11px;color:#b0aca0;margin-top:4px;">Clique na mensagem para copiar</div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn-outline" onclick="fecharModalEnvio()">Cancelar</button>
+      <button class="btn-primary btn-gold" id="btn-confirmar-envio" onclick="confirmarEnvio()">✓ Confirmar Envio</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="modal-foto" onclick="fecharModal()">
   <span class="modal-close">✕</span>
@@ -350,7 +422,7 @@ async function salvarPedido() {
     obs: document.getElementById('f-obs').value.trim(),
     fotos: fotosPendentes,
     urgente: document.getElementById('f-urgente').checked,
-    status: editandoId ? (pedidos.find(p=>p.id===editandoId)?.status || 'producao') : 'producao'
+    status: editandoId ? (pedidos.find(p=>p.id===editandoId)?.status || 'aguardando') : 'aguardando'
   };
 
   try {
@@ -415,8 +487,9 @@ function editarPedido(id) {
 }
 
 // ── STATUS ──
-const statusLabel = { producao: 'Em Produção', monica: '🧵 Mônica Fazendo', lucas: '🧵 Lucas Fazendo', pronto: 'Pronto', enviado: 'Enviado', entregue: 'Entregue' };
+const statusLabel = { aguardando: 'Aguardando', producao: 'Em Produção', monica: '🧵 Mônica Fazendo', lucas: '🧵 Lucas Fazendo', pronto: 'Pronto', enviado: 'Enviado', entregue: 'Entregue' };
 const statusNext = {
+  aguardando: { key: 'producao', label: '→ Em Produção' },
   monica: { key: 'pronto', label: '→ Marcar Pronto' },
   lucas: { key: 'pronto', label: '→ Marcar Pronto' },
   producao: { key: 'pronto', label: '→ Marcar Pronto' },
@@ -500,33 +573,48 @@ function renderList() {
   container.innerHTML = lista.map(p => {
     const data = p.criado_em ? new Date(p.criado_em).toLocaleDateString('pt-BR') : '';
     const prazo = p.prazo ? new Date(p.prazo + 'T12:00:00').toLocaleDateString('pt-BR') : '';
-    const wppLink = p.wpp ? `<a href="https://wa.me/55${p.wpp.replace(/\D/g,'')}" target="_blank">${p.wpp}</a>` : '—';
+    const wppLink = p.wpp
+    ? (p.wpp.startsWith('@')
+        ? `<a href="https://instagram.com/${p.wpp.replace('@','')}" target="_blank">${p.wpp}</a>`
+        : `<a href="https://wa.me/55${p.wpp.replace(/\D/g,'')}" target="_blank">${p.wpp}</a>`)
+    : '—';
     const next = statusNext[p.status];
     const fotos = (p.fotos||[]).map(f => `<img class="pedido-foto" src="${f}" onclick="abrirModal('${f}')">`).join('');
 
     return `
-    <div class="pedido-card status-${p.status}${p.urgente ? ' urgente' : ''}">
-      <div class="pedido-top">
-        <div>
-          <div class="pedido-id">${p.id} · ${data}</div>
-          <div class="pedido-nome">${p.nome}${p.urgente ? '<span class="urgente-badge">🚨 Urgente</span>' : ''}</div>
-          <div class="pedido-wpp">${wppLink}</div>
+    <div class="pedido-card status-${p.status}${p.urgente ? ' urgente' : ''}" id="card-${p.id}" onclick="toggleCard('${p.id}', event)">
+      <div class="pedido-summary">
+        ${p.urgente ? '<span class="urgente-badge" style="animation:none;">🚨</span>' : ''}
+        <div class="pedido-summary-nome">${p.nome}</div>
+        <div class="pedido-summary-meta">
+          <span class="badge badge-${p.status}">${statusLabel[p.status]}</span>
+          <span class="summary-date">📅 ${data}</span>
+          ${prazo ? `<span class="summary-date">⏱ ${prazo}</span>` : ''}
         </div>
-        <span class="badge badge-${p.status}">${statusLabel[p.status]}</span>
+        <span class="chevron">▼</span>
       </div>
-      ${p.descricao ? `<div class="pedido-desc">${p.descricao}</div>` : ''}
-      <div class="pedido-meta">
-        ${p.valor ? `<div class="meta-item"><div class="meta-label">Valor</div><div class="meta-value valor">R$ ${Number(p.valor).toFixed(2).replace('.',',')}</div></div>` : ''}
-        ${p.pagto ? `<div class="meta-item"><div class="meta-label">Pagamento</div><div class="meta-value">${p.pagto}</div></div>` : ''}
-        ${prazo ? `<div class="meta-item"><div class="meta-label">Prazo</div><div class="meta-value">${prazo}</div></div>` : ''}
-        ${p.rastreio ? `<div class="meta-item"><div class="meta-label">Rastreio</div><div class="meta-value">${p.rastreio}</div></div>` : ''}
-      </div>
-      ${fotos ? `<div class="pedido-fotos">${fotos}</div>` : ''}
-      ${p.obs ? `<div class="pedido-obs">📝 ${p.obs}</div>` : ''}
-      <div class="pedido-actions">
-        ${p.status === 'producao' ? `<button class="btn-sm btn-monica" onclick="setResponsavel('${p.id}', 'monica', this)">🧵 Mônica Fazendo</button><button class="btn-sm btn-lucas" onclick="setResponsavel('${p.id}', 'lucas', this)">🧵 Lucas Fazendo</button>` : (next ? `<button class="btn-sm status-next" onclick="avancarStatus('${p.id}', this)">${next.label}</button>` : '')}
-        <button class="btn-sm" onclick="editarPedido('${p.id}')">✏ Editar</button>
-        <button class="btn-sm danger" onclick="deletarPedido('${p.id}')">🗑 Remover</button>
+
+      <div class="pedido-detail">
+        <div class="pedido-id">${p.id}</div>
+        <div class="pedido-wpp" style="margin-bottom:10px;">${wppLink}</div>
+        ${p.descricao ? `<div class="pedido-desc">${p.descricao}</div>` : ''}
+        <div class="pedido-meta">
+          ${p.valor ? `<div class="meta-item"><div class="meta-label">Valor</div><div class="meta-value valor">R$ ${Number(p.valor).toFixed(2).replace('.',',')}</div></div>` : ''}
+          ${p.pagto ? `<div class="meta-item"><div class="meta-label">Pagamento</div><div class="meta-value">${p.pagto}</div></div>` : ''}
+          ${prazo ? `<div class="meta-item"><div class="meta-label">Prazo</div><div class="meta-value">${prazo}</div></div>` : ''}
+          ${p.rastreio ? `<div class="meta-item"><div class="meta-label">Rastreio</div><div class="meta-value">${p.rastreio}</div></div>` : ''}
+        </div>
+        ${fotos ? `<div class="pedido-fotos">${fotos}</div>` : ''}
+        ${p.obs ? `<div class="pedido-obs">📝 ${p.obs}</div>` : ''}
+        <div class="pedido-actions">
+          ${p.status === 'aguardando' ? `<button class="btn-sm status-next" onclick="avancarStatus('${p.id}', this)">→ Em Produção</button>` : ''}
+          ${p.status === 'producao' ? `<button class="btn-sm btn-monica" onclick="setResponsavel('${p.id}', 'monica', this)">🧵 Mônica Fazendo</button><button class="btn-sm btn-lucas" onclick="setResponsavel('${p.id}', 'lucas', this)">🧵 Lucas Fazendo</button><button class="btn-sm status-next" onclick="avancarStatus('${p.id}', this)">→ Marcar Pronto</button>` : ''}
+          ${(p.status === 'monica' || p.status === 'lucas') ? `<button class="btn-sm status-next" onclick="avancarStatus('${p.id}', this)">→ Marcar Pronto</button>` : ''}
+          ${p.status === 'pronto' ? `<button class="btn-sm status-next" onclick="abrirModalEnvio('${p.id}')">→ Marcar Enviado</button>` : ''}
+          ${p.status === 'enviado' ? `<button class="btn-sm status-next" onclick="avancarStatus('${p.id}', this)">→ Marcar Entregue</button>` : ''}
+          <button class="btn-sm" onclick="editarPedido('${p.id}')">✏ Editar</button>
+          <button class="btn-sm danger" onclick="deletarPedido('${p.id}')">🗑 Remover</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -547,6 +635,75 @@ function toast(msg, err) {
   t.textContent = msg;
   t.className = 'toast show' + (err ? ' error' : '');
   setTimeout(() => t.className = 'toast', 3000);
+}
+
+
+
+// ── TOGGLE CARD ──
+function toggleCard(id, event) {
+  // Don't toggle if clicking buttons or links
+  if (event.target.closest('button') || event.target.closest('a') || event.target.closest('img')) return;
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  // Close all others
+  document.querySelectorAll('.pedido-card.open').forEach(c => {
+    if (c !== card) c.classList.remove('open');
+  });
+  card.classList.toggle('open');
+}
+
+// ── MODAL ENVIO ──
+let envioId = null;
+
+function abrirModalEnvio(id) {
+  const p = pedidos.find(p => p.id === id);
+  if (!p) return;
+  envioId = id;
+  document.getElementById('envio-rastreio').value = p.rastreio || '';
+  gerarMsgEnvio(p);
+  document.getElementById('modal-envio').classList.add('open');
+  document.getElementById('envio-rastreio').addEventListener('input', () => {
+    gerarMsgEnvio(p);
+  });
+}
+
+function gerarMsgEnvio(p) {
+  const codigo = document.getElementById('envio-rastreio').value.trim().toUpperCase();
+  const nome = p.nome.split(' ')[0];
+  const msg = codigo
+    ? `Oi ${nome}! Sua encomenda foi enviada 🙏\nSegue o código de rastreio para acompanhar: ${codigo}\nQualquer dúvida é só chamar. Axé! 🌟`
+    : `Oi ${nome}! Sua encomenda foi enviada 🙏\nQualquer dúvida é só chamar. Axé! 🌟`;
+  document.getElementById('envio-msg').value = msg;
+}
+
+function copiarMsg() {
+  const txt = document.getElementById('envio-msg').value;
+  navigator.clipboard.writeText(txt).then(() => toast('✓ Mensagem copiada!'));
+}
+
+function fecharModalEnvio() {
+  document.getElementById('modal-envio').classList.remove('open');
+  envioId = null;
+}
+
+async function confirmarEnvio() {
+  if (!envioId) return;
+  const rastreio = document.getElementById('envio-rastreio').value.trim().toUpperCase();
+  const btn = document.getElementById('btn-confirmar-envio');
+  btn.disabled = true;
+  try {
+    await apiUpdate(envioId, { status: 'enviado', rastreio: rastreio || null });
+    const p = pedidos.find(p => p.id === envioId);
+    if (p) { p.status = 'enviado'; p.rastreio = rastreio || null; }
+    fecharModalEnvio();
+    renderList();
+    updateStats();
+    toast('✓ Pedido marcado como enviado!');
+  } catch(e) {
+    toast('❌ Erro ao atualizar', true);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ── INIT ──
