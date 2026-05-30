@@ -1,0 +1,17 @@
+{
+  "name": "Umbando · Pedidos",
+  "short_name": "Umbando",
+  "description": "Gestão de pedidos da Umbando Guias",
+  "start_url": "/pedidos-umbando/",
+  "display": "standalone",
+  "background_color": "#002a66",
+  "theme_color": "#002a66",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/lucasruizkukai/pedidos-umbando/main/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
